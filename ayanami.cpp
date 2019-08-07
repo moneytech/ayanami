@@ -261,7 +261,7 @@ nm::float3 color(const ray &r, int bounce) {
     sphere { nm::float3{ 0.0f, -100.5f, -1.0f }, 100.0f }
   };
   hit_record hit;
-  if (scene.hit_test(r, 0.0f, 1000.0f, hit)) {
+  if (bounce < max_bounces && scene.hit_test(r, 0.0f, 1000.0f, hit)) {
     const nm::float3 target = hit.p + hit.normal + random_in_unit_sphere();
     return 0.5f * color(ray { hit.p, target - hit.p }, bounce + 1);
   }
