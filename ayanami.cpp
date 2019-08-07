@@ -15,9 +15,9 @@ class framebuffer {
 public:
 
   framebuffer(size_t width,size_t height):
-      width_ (width),
-      height_(height),
-      data_  ((uint8_t*)malloc(width* height* kBytesPerPixel)) {}
+       width_ (width),
+      height_ (height),
+        data_ ((uint8_t*)malloc(width* height* kBytesPerPixel)) {}
 
   ~framebuffer() { free(data_); }
 
@@ -31,6 +31,7 @@ public:
                  uint8_t g,
                  uint8_t b) {
     const size_t idx = kBytesPerPixel * (row * width_ + col);
+
     data_[idx + 0] = b;
     data_[idx + 1] = g;
     data_[idx + 2] = r;
@@ -42,6 +43,7 @@ public:
   void save(const char* file_path) const {
     FILE* fptr = fopen(file_path,"wb");
     assert(fptr);
+
     // Write targa header, this portion taken from
     // http://paulbourke.net/dataformats/tga/
     putc(0,fptr);
@@ -58,6 +60,7 @@ public:
     putc((height_ & 0xFF00) / 256,fptr);
     putc(24,fptr);                        /* 24 bit bitmap */
     putc(0,fptr);
+
     // Write image data.
     fwrite(data_, kBytesPerPixel, width_ * height_, fptr);
     fclose(fptr);
@@ -79,8 +82,8 @@ class ray {
 public:
   ray(const nm::float3 &o,
       const nm::float3 &d) : 
-    origin_   (o),
-    direction_(nm::normalize(d)) {}
+       origin_ (o),
+    direction_ (nm::normalize(d)) {}
 
   const nm::float3& origin() const {
     return origin_;
@@ -113,9 +116,9 @@ public:
    * TODO: add focal length.
    */
   camera(float aspect_h, float aspect_v) :
-    aspect_h_(aspect_h),
-    aspect_v_(aspect_v),
-    origin_ { 0.0f, 0.0f, 0.0f } {}
+    aspect_h_ (aspect_h),
+    aspect_v_ (aspect_v),
+      origin_ { 0.0f, 0.0f, 0.0f } {}
 
   /**
    * Calculate a ray for the given UV coordinate of the camera image.
@@ -174,19 +177,21 @@ public:
                  float       tmax,
                  hit_record &hit) const override {
     const nm::float3 oc = r.origin() - center_;
-    const float a = nm::dot(r.direction(), r.direction());
-    const float b = nm::dot(oc, r.direction()) * 2.0f;
-    const float c = nm::dot(oc, oc) - radius_ * radius_;
-    const float d = b * b - 4.0f * a * c;
+    const float       a = nm::dot(r.direction(), r.direction());
+    const float       b = nm::dot(oc, r.direction()) * 2.0f;
+    const float       c = nm::dot(oc, oc) - radius_ * radius_;
+    const float       d = b * b - 4.0f * a * c;
+
     if (d > 0.0f) {
       const float t1 = (-b - sqrtf(d)) / (2.0f * a);
       const float t2 = (-b + sqrtf(d)) / (2.0f * a);
       if (t1 > tmin && t1 < tmax) hit.t = t1;
       else if (t2 > tmin && t2 < tmax) hit.t = t2;
-      else return false;
+      else return false; /* neither of the roots are within acceptable range. */
       hit.p = r.point_at(hit.t);
       hit.normal = nm::normalize(hit.p - center_);
     }
+
     return d > 0.0f;
   }
 
@@ -210,8 +215,9 @@ public:
                 float       tmin,
                 float       tmax,
                 hit_record &hit) const override {
-    bool anyhit = false;
+    bool       anyhit = false;
     float closest_hit = tmax;
+
     for (const sphere &s : list_) {
       bool has_hit = s.hit_test(r, tmin, closest_hit, hit);
       if (has_hit) closest_hit = hit.t; /* ensure we get the closest hit. */
@@ -228,8 +234,7 @@ private:
  * Produces a random floating point number between 0.0 and 1.0.
  */
 float randf() {
-  static std::random_device rd;
-  static std::mt19937  gen(rd());
+  static std::mt19937 gen((std::random_device{})());
   static std::uniform_real_distribution<float> d { 0.0f, 1.0 };
   return d(gen);
 }
@@ -240,8 +245,8 @@ float randf() {
 nm::float3 random_in_unit_sphere() {
   nm::float3 result;
   do {
-    result = 2.0f * nm::float3(randf(), randf(), randf()) -
-                    nm::float3 { 1.0f, 1.0f, 1.0f };
+    result = 2.0f * nm::float3 { randf(), randf(), randf() } -
+                    nm::float3 {    1.0f,    1.0f,    1.0f };
   } while (nm::lengthsq(result) > 1.0f);
   return result;
 }
@@ -252,7 +257,7 @@ nm::float3 random_in_unit_sphere() {
 nm::float3 color(const ray &r, int bounce) {
   static constexpr int max_bounces = 50;
   sphere_list scene {
-    sphere { nm::float3{ 0.0f, 0.0f, -1.0f }, 0.5f },
+    sphere { nm::float3{ 0.0f,    0.0f, -1.0f }, 0.5f },
     sphere { nm::float3{ 0.0f, -100.5f, -1.0f }, 100.0f }
   };
   hit_record hit;
@@ -266,18 +271,20 @@ nm::float3 color(const ray &r, int bounce) {
 }
 
 int main(int argc, char *argv[]) {
-  framebuffer fb { 200u, 100u };
+  constexpr size_t kNumSamples = 100u;
+
+  framebuffer  fb { 200u, 100u };
   camera      cam { 4.0f, 2.0f };
+
   for (size_t r = 0u; r < fb.height(); r++) {
     for (size_t c = 0u; c < fb.width(); c++) {
       nm::float3 col { 0.0f, 0.0f, 0.0f };
-      constexpr size_t ns = 100u;
-      for (size_t s = 0u; s < ns; ++s) {
+      for (size_t s = 0u; s < kNumSamples; ++s) {
         const float u = ((float) c + randf()) / (float) fb.width();
         const float v = ((float) r + randf()) / (float) fb.height();
         col = col + color(cam.get_ray(u, v), 0);
       }
-      col /= (float)ns;
+      col /= (float)kNumSamples;
       fb.set_pixel(r, c,
                    255.99f * sqrt(col.x()),
                    255.99f * sqrt(col.y()),
