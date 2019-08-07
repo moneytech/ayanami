@@ -7,17 +7,24 @@
 #include <random>
 #include "nicemath.h"
 
+/**
+ * A two-dimensional array of pixel colors.
+ */
 class framebuffer {
-public:
   static constexpr size_t kBytesPerPixel = 3;
+public:
 
   framebuffer(size_t width,size_t height):
-    width_ (width),
-    height_(height),
-    data_  ((uint8_t*)malloc(width* height* kBytesPerPixel)) {}
+      width_ (width),
+      height_(height),
+      data_  ((uint8_t*)malloc(width* height* kBytesPerPixel)) {}
 
   ~framebuffer() { free(data_); }
 
+  /**
+   * Set the color of the pixel at the intersection of the given row and
+   * column.
+   */
   void set_pixel(size_t row,
                  size_t col,
                  uint8_t r,
@@ -29,9 +36,14 @@ public:
     data_[idx + 2] = r;
   }
 
+  /**
+   * Saves the pixel data in uncompressed Targa format.
+   */
   void save(const char* file_path) const {
     FILE* fptr = fopen(file_path,"wb");
     assert(fptr);
+    // Write targa header, this portion taken from
+    // http://paulbourke.net/dataformats/tga/
     putc(0,fptr);
     putc(0,fptr);
     putc(2,fptr);                         /* uncompressed RGB */
@@ -46,6 +58,7 @@ public:
     putc((height_ & 0xFF00) / 256,fptr);
     putc(24,fptr);                        /* 24 bit bitmap */
     putc(0,fptr);
+    // Write image data.
     fwrite(data_, kBytesPerPixel, width_ * height_, fptr);
     fclose(fptr);
   }
@@ -59,6 +72,9 @@ private:
   size_t   height_;
 };
 
+/**
+ * A ray is a combination of an origin point and a direction.
+ */
 class ray {
 public:
   ray(const nm::float3 &o,
@@ -66,9 +82,18 @@ public:
     origin_   (o),
     direction_(nm::normalize(d)) {}
 
-  const nm::float3& origin() const { return origin_; }
-  const nm::float3& direction() const { return direction_; }
+  const nm::float3& origin() const {
+    return origin_;
+  }
 
+  const nm::float3& direction() const {
+    return direction_;
+  }
+
+  /**
+   * Evaluates A + tB where A is the ray's origin point 
+   * and B is the direction.
+   */
   nm::float3 point_at(float t) const {
     return origin_ + direction_ * t;
   }
@@ -78,16 +103,27 @@ private:
   nm::float3 direction_;
 };
 
+/**
+ * Produces primary rays.
+ */
 class camera {
 public:
+  /**
+   * Creates a camera with aspect_h / aspect_v aspect ratio.
+   * TODO: add focal length.
+   */
   camera(float aspect_h, float aspect_v) :
     aspect_h_(aspect_h),
     aspect_v_(aspect_v),
     origin_ { 0.0f, 0.0f, 0.0f } {}
 
+  /**
+   * Calculate a ray for the given UV coordinate of the camera image.
+   */
   ray get_ray(float u, float v) {
     const nm::float3 lower_left { -aspect_h_ / 2.0f, -aspect_v_/2.0f, -1.0f };
-    return ray { origin_, lower_left + nm::float3 {u * aspect_h_, v * aspect_v_, 0.0f}};
+    return ray { origin_,
+                 lower_left + nm::float3 {u * aspect_h_, v * aspect_v_, 0.0f}};
   }
 
 private:
@@ -96,14 +132,30 @@ private:
   nm::float3 origin_;
 };
 
+/**
+ * Information about a point where a ray intersects geometry.
+ */
 struct hit_record {
-  nm::float3 normal;
-  float      t;
-  nm::float3 p;
+  nm::float3 normal; /* Surface normal at the intersection point. */
+  float      t;      /* Value of t (ray parameter) corresponding to the
+                        intersection point.*/
+  nm::float3 p;      /* The intersection point itself. */
 };
 
+/**
+ * Any geometry that may be intersected by rays.
+ */
 class hitable {
 public:
+  /**
+   * Test if the given ray hits this piece of geometry.
+   * `tmin' and `tmax' are the minimum and maximum allowed values of t at which
+   * the intersection is allowed to occur.
+   * `hit' shall contain information about the ray/geometry intersection if an
+   *  an intersection is present.
+   * This function shall return `true' if the ray intersects with the geometry
+   * and `false' otherwise.
+   */
   virtual bool hit_test(const ray  &r,
                         float       tmin,
                         float       tmax,
@@ -143,11 +195,17 @@ private:
   float      radius_;
 };
 
+/**
+ * List of spheres.
+ */
 class sphere_list : hitable {
 public:
   template <class ...Args>
   sphere_list(Args... args) : list_ { std::forward<Args>(args)... } {}
 
+  /**
+   * A hit is registerted if the ray intersects any of the spheres in the list.
+   */
   bool hit_test(const ray  &r,
                 float       tmin,
                 float       tmax,
@@ -156,7 +214,7 @@ public:
     float closest_hit = tmax;
     for (const sphere &s : list_) {
       bool has_hit = s.hit_test(r, tmin, closest_hit, hit);
-      if (has_hit) closest_hit = hit.t;
+      if (has_hit) closest_hit = hit.t; /* ensure we get the closest hit. */
       anyhit |= has_hit;
     }
     return anyhit;
@@ -166,6 +224,9 @@ private:
   std::vector<sphere> list_;
 };
 
+/**
+ * Produces a random floating point number between 0.0 and 1.0.
+ */
 float randf() {
   static std::random_device rd;
   static std::mt19937  gen(rd());
@@ -173,6 +234,9 @@ float randf() {
   return d(gen);
 }
 
+/**
+ * Produces a random 3D point within a sphere of radius 1.
+ */
 nm::float3 random_in_unit_sphere() {
   nm::float3 result;
   do {
@@ -182,6 +246,9 @@ nm::float3 random_in_unit_sphere() {
   return result;
 }
 
+/**
+ * Cast a ray into the scene and determine color.
+ */
 nm::float3 color(const ray &r, int bounce) {
   static constexpr int max_bounces = 50;
   sphere_list scene {
