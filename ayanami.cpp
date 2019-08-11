@@ -4,28 +4,25 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <vector>
-#include <random>
 #include "nicemath.h"
 
-float frand( int *seed )
-{
-    union
-    {
-        float fres;
-        unsigned int ires;
-    };
-
-    seed[0] *= 16807;
-    ires = ((((unsigned int)seed[0])>>9 ) | 0x3f800000);
-    return fres - 1.0f;
-}
-
 /**
- * Produces a random floating point number between 0.0 and 1.0.
- */
-float randf() {
+* Generates a random float in 0.0 to 1.0 range.
+* (credit to Inigo Quilez:
+* http://www.iquilezles.org/www/articles/sfrand/sfrand.htm)
+*/
+float randf()
+{
   static int seed = 15677;
-  return frand(&seed);
+  union
+  {
+    float fres;
+    unsigned int ires;
+  };
+
+  seed *= 16807;
+  ires = ((((unsigned int)seed)>>9 ) | 0x3f800000);
+  return fres - 1.0f;
 }
 
 /**
@@ -147,7 +144,6 @@ class camera {
 public:
   /**
    * Creates a camera with aspect_h / aspect_v aspect ratio.
-   * TODO: add focal length.
    */
   camera(float aspect_h, float aspect_v) :
     aspect_h_ (aspect_h),
@@ -175,16 +171,15 @@ class material;
  * Information about a point where a ray intersects geometry.
  */
 struct hit_record {
-  nm::float3  normal; /* Surface normal at the intersection point. */
-  float       t;      /* Value of t (ray parameter) corresponding to the
-                        intersection point.*/
-  nm::float3  p;      /* The intersection point itself. */
-  const material   *mat; /* Material at the intersection point. */
+  nm::float3      normal; /* Surface normal at the intersection point. */
+  float           t;      /* Parameter value at the intersection.*/
+  nm::float3      p;      /* The intersection point itself. */
+  const material *mat;    /* Material at the intersection point. */
 };
 
 class material {
 public:
-  virtual bool scatter(const ray         &in,
+  virtual bool scatter(const ray        &in,
                        const hit_record &rec,
                        nm::float3       &attn,
                        ray              &scattered) const = 0; 
@@ -195,7 +190,7 @@ public:
   explicit lambertian(const nm::float3 albedo) :
     albedo_(albedo) {}
 
-  bool scatter(const ray         &in,
+  bool scatter(const ray        &in,
                const hit_record &rec,
                nm::float3       &attn,
                ray              &scattered) const override {
@@ -209,6 +204,9 @@ private:
   nm::float3 albedo_;
 };
 
+/**
+ * Reflects a given vector across a normal.
+ */
 nm::float3 reflect(const nm::float3 &i, const nm::float3 &n) {
   return i - 2.0f * nm::dot(i, n) * n;
 }
@@ -224,9 +222,12 @@ public:
                nm::float3       &attn,
                ray              &scattered) const override {
     const nm::float3 refl_dir =
-      reflect(nm::normalize(in.direction()), rec.normal) + random_in_unit_sphere() * fuzz_;
+      reflect(nm::normalize(in.direction()), rec.normal) +
+      random_in_unit_sphere() * fuzz_;
+
     attn      = attn_;
     scattered = ray { rec.p, refl_dir };
+
     return true;
   }
 
@@ -243,13 +244,12 @@ public:
                const hit_record &rec,
                nm::float3       &attn,
                ray              &scattered) const override {
-     attn = nm::float3 { 1.0f, 1.0f, 1.0f };
-     nm::float3 refracted_dir;
-     bool is_refracted = false;
-     const nm::float3 &n = rec.normal;
-     const nm::float3 &i = in.direction();
-     float refl_prob = 1.0f;
-     float cosine = 0.0f;
+     bool               is_refracted = false;
+     float                    cosine = 0.0f;
+     const nm::float3             &n = rec.normal;
+     const nm::float3             &i = in.direction();
+     float                    refl_p = 1.0f;
+     nm::float3        refracted_dir;
      if (nm::dot(i, n) > 0.0f) {
        is_refracted = refract(i, -n, refraction_idx_, 1.0f, refracted_dir);
        cosine = refraction_idx_ * dot(i, n) / nm::length(i);
@@ -258,12 +258,13 @@ public:
        cosine = -nm::dot(i, n) / nm::length(i);
      }
      if (is_refracted) {
-       refl_prob = schlick(cosine, refraction_idx_);
+       refl_p = schlick(cosine, refraction_idx_);
      }
 
+     attn      = nm::float3 { 1.0f, 1.0f, 1.0f };
      scattered = ray {
        rec.p,
-       randf() < refl_prob ? reflect(i, n) : refracted_dir
+       randf() < refl_p ? reflect(i, n) : refracted_dir
      };
 
      return true;
@@ -286,8 +287,7 @@ private:
     const float ni_o_nt = ni / nt;
     float             d = 1.0f - ni_o_nt * ni_o_nt * (1.0f - dt * dt);
     const bool  is_refr = d > 0.0f;
-    if (is_refr)
-      refracted = ni_o_nt * (ui - n * dt) - n * sqrtf(d);
+    if (is_refr) refracted = ni_o_nt * (ui - n * dt) - n * sqrtf(d);
     return is_refr;
   }
 
@@ -389,21 +389,23 @@ private:
  */
 nm::float3 color(const ray &r, int bounce) {
   static constexpr int max_bounces = 50;
-  static lambertian diffuse_gray { nm::float3 { 0.5f, 0.5f, 0.5f } };
-  static lambertian diffuse_pink { nm::float3 { 0.8f, 0.3f, 0.3f } };
-  static lambertian diffuse_yellow { nm::float3 { 0.8f, 0.8f, 0.0f }};
-  static lambertian diffuse_blue  { nm::float3 { 0.1f, 0.2f, 0.5f } };
-  static dielectric dielectric_1  { 1.5f };
-  static metal      reddish_metal { nm::float3 {0.8f, 0.6f, 0.2f },  0.0f };
-  static metal      gray_metal    { nm::float3 { 0.8f, 0.8f, 0.8f }, 0.3f };
+
+  static lambertian diffuse_gray   { nm::float3 { 0.5f, 0.5f, 0.5f } };
+  static lambertian diffuse_pink   { nm::float3 { 0.8f, 0.3f, 0.3f } };
+  static lambertian diffuse_yellow { nm::float3 { 0.8f, 0.8f, 0.0f } };
+  static lambertian diffuse_blue   { nm::float3 { 0.1f, 0.2f, 0.5f } };
+  static dielectric dielectric_1   { 1.5f };
+  static metal      reddish_metal  { nm::float3 { 0.8f, 0.6f, 0.2f }, 0.0f };
+  static metal      gray_metal     { nm::float3 { 0.8f, 0.8f, 0.8f }, 0.3f };
 
   static sphere_list scene {
     sphere { nm::float3{ 0.0f,    0.0f, -1.0f }, 0.5f, &diffuse_blue},
     sphere { nm::float3{ 0.0f, -100.5f, -1.0f }, 100.0f, &diffuse_yellow },
-    sphere { nm::float3{1.0f, 0.0f, -1.0f}, 0.5f, &reddish_metal },
+    sphere { nm::float3{ 1.0f, 0.0f, -1.0f}, 0.5f, &reddish_metal },
     sphere { nm::float3{-1.0f, 0.0f, -1.0f}, 0.5f, &dielectric_1 },
     sphere { nm::float3{-1.0f, 0.0f, -1.0f},-0.45f, &dielectric_1 },
   };
+
   hit_record hit;
   if (bounce < max_bounces && scene.hit_test(r, 0.001f, 1000.0f, hit)) {
     const nm::float3 target = hit.p + hit.normal + random_in_unit_sphere();
