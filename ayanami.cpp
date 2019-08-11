@@ -7,6 +7,39 @@
 #include <random>
 #include "nicemath.h"
 
+float frand( int *seed )
+{
+    union
+    {
+        float fres;
+        unsigned int ires;
+    };
+
+    seed[0] *= 16807;
+    ires = ((((unsigned int)seed[0])>>9 ) | 0x3f800000);
+    return fres - 1.0f;
+}
+
+/**
+ * Produces a random floating point number between 0.0 and 1.0.
+ */
+float randf() {
+  static int seed = 15677;
+  return frand(&seed);
+}
+
+/**
+ * Produces a random 3D point within a sphere of radius 1.
+ */
+nm::float3 random_in_unit_sphere() {
+  nm::float3 result;
+  do {
+    result = 2.0f * nm::float3 { randf(), randf(), randf() } -
+                    nm::float3 {    1.0f,    1.0f,    1.0f };
+  } while (nm::lengthsq(result) > 1.0f);
+  return result;
+}
+
 /**
  * A two-dimensional array of pixel colors.
  */
@@ -80,6 +113,7 @@ private:
  */
 class ray {
 public:
+  ray() = default;
   ray(const nm::float3 &o,
       const nm::float3 &d) : 
        origin_ (o),
@@ -135,15 +169,131 @@ private:
   nm::float3 origin_;
 };
 
+class material;
+
 /**
  * Information about a point where a ray intersects geometry.
  */
 struct hit_record {
-  nm::float3 normal; /* Surface normal at the intersection point. */
-  float      t;      /* Value of t (ray parameter) corresponding to the
+  nm::float3  normal; /* Surface normal at the intersection point. */
+  float       t;      /* Value of t (ray parameter) corresponding to the
                         intersection point.*/
-  nm::float3 p;      /* The intersection point itself. */
+  nm::float3  p;      /* The intersection point itself. */
+  const material   *mat; /* Material at the intersection point. */
 };
+
+class material {
+public:
+  virtual bool scatter(const ray         &in,
+                       const hit_record &rec,
+                       nm::float3       &attn,
+                       ray              &scattered) const = 0; 
+};
+
+class lambertian : public material {
+public:
+  explicit lambertian(const nm::float3 albedo) :
+    albedo_(albedo) {}
+
+  bool scatter(const ray         &in,
+               const hit_record &rec,
+               nm::float3       &attn,
+               ray              &scattered) const override {
+    const nm::float3 target = rec.p + rec.normal + random_in_unit_sphere();
+    attn      = albedo_;
+    scattered = ray { rec.p, target - rec.p };
+    return true;
+  }
+
+private:
+  nm::float3 albedo_;
+};
+
+nm::float3 reflect(const nm::float3 &i, const nm::float3 &n) {
+  return i - 2.0f * nm::dot(i, n) * n;
+}
+
+class metal : public material {
+public:
+  metal(const nm::float3 attn, float fuzz) :
+    attn_(attn),
+    fuzz_(fuzz) {}
+
+  bool scatter(const ray        &in,
+               const hit_record &rec,
+               nm::float3       &attn,
+               ray              &scattered) const override {
+    const nm::float3 refl_dir =
+      reflect(nm::normalize(in.direction()), rec.normal) + random_in_unit_sphere() * fuzz_;
+    attn      = attn_;
+    scattered = ray { rec.p, refl_dir };
+    return true;
+  }
+
+private:
+  nm::float3 attn_;
+  float      fuzz_;
+};
+
+class dielectric : public material {
+public:
+  explicit dielectric(float ri) : refraction_idx_(ri) {}
+
+  bool scatter(const ray        &in,
+               const hit_record &rec,
+               nm::float3       &attn,
+               ray              &scattered) const override {
+     attn = nm::float3 { 1.0f, 1.0f, 1.0f };
+     nm::float3 refracted_dir;
+     bool is_refracted = false;
+     const nm::float3 &n = rec.normal;
+     const nm::float3 &i = in.direction();
+     float refl_prob = 1.0f;
+     float cosine = 0.0f;
+     if (nm::dot(i, n) > 0.0f) {
+       is_refracted = refract(i, -n, refraction_idx_, 1.0f, refracted_dir);
+       cosine = refraction_idx_ * dot(i, n) / nm::length(i);
+     } else {
+       is_refracted = refract(i, n, 1.0f, refraction_idx_, refracted_dir);
+       cosine = -nm::dot(i, n) / nm::length(i);
+     }
+     if (is_refracted) {
+       refl_prob = schlick(cosine, refraction_idx_);
+     }
+
+     scattered = ray {
+       rec.p,
+       randf() < refl_prob ? reflect(i, n) : refracted_dir
+     };
+
+     return true;
+  }
+
+private:
+  static float schlick(float cosine, float ri) {
+    const float r0   = (1.0f - ri) / (1.0f + ri);
+    const float r0sq = r0 * r0;
+    return r0sq + (1.0f - r0sq) * pow((1.0f - cosine), 5);
+  }
+
+  static bool refract(const nm::float3 &i,
+                      const nm::float3 &n,
+                      float             ni,
+                      float             nt,
+                      nm::float3       &refracted) {
+    const nm::float3 ui = nm::normalize(i);
+    const float      dt = nm::dot(i, n);
+    const float ni_o_nt = ni / nt;
+    float             d = 1.0f - ni_o_nt * ni_o_nt * (1.0f - dt * dt);
+    const bool  is_refr = d > 0.0f;
+    if (is_refr)
+      refracted = ni_o_nt * (ui - n * dt) - n * sqrtf(d);
+    return is_refr;
+  }
+
+  float refraction_idx_;
+};
+
 
 /**
  * Any geometry that may be intersected by rays.
@@ -168,9 +318,11 @@ public:
 class sphere : public hitable {
 public:
   sphere(const nm::float3 &center,
-         float radius) :
+         float             radius,
+         const material   *mat) :
     center_(center),
-    radius_(radius) {}
+    radius_(radius),
+    mat_   (mat) {}
 
    bool hit_test(const ray  &r,
                  float       tmin,
@@ -188,16 +340,18 @@ public:
       if (t1 > tmin && t1 < tmax) hit.t = t1;
       else if (t2 > tmin && t2 < tmax) hit.t = t2;
       else return false; /* neither of the roots are within acceptable range. */
-      hit.p = r.point_at(hit.t);
-      hit.normal = nm::normalize(hit.p - center_);
+      hit.p      = r.point_at(hit.t);
+      hit.normal = (hit.p - center_) / radius_;
+      hit.mat    = mat_;
     }
 
     return d > 0.0f;
   }
 
 private:
-  nm::float3 center_;
-  float      radius_;
+  nm::float3        center_;
+  float             radius_;
+  const material   *mat_;
 };
 
 /**
@@ -231,39 +385,33 @@ private:
 };
 
 /**
- * Produces a random floating point number between 0.0 and 1.0.
- */
-float randf() {
-  static std::mt19937 gen((std::random_device{})());
-  static std::uniform_real_distribution<float> d { 0.0f, 1.0 };
-  return d(gen);
-}
-
-/**
- * Produces a random 3D point within a sphere of radius 1.
- */
-nm::float3 random_in_unit_sphere() {
-  nm::float3 result;
-  do {
-    result = 2.0f * nm::float3 { randf(), randf(), randf() } -
-                    nm::float3 {    1.0f,    1.0f,    1.0f };
-  } while (nm::lengthsq(result) > 1.0f);
-  return result;
-}
-
-/**
  * Cast a ray into the scene and determine color.
  */
 nm::float3 color(const ray &r, int bounce) {
   static constexpr int max_bounces = 50;
-  sphere_list scene {
-    sphere { nm::float3{ 0.0f,    0.0f, -1.0f }, 0.5f },
-    sphere { nm::float3{ 0.0f, -100.5f, -1.0f }, 100.0f }
+  static lambertian diffuse_gray { nm::float3 { 0.5f, 0.5f, 0.5f } };
+  static lambertian diffuse_pink { nm::float3 { 0.8f, 0.3f, 0.3f } };
+  static lambertian diffuse_yellow { nm::float3 { 0.8f, 0.8f, 0.0f }};
+  static lambertian diffuse_blue  { nm::float3 { 0.1f, 0.2f, 0.5f } };
+  static dielectric dielectric_1  { 1.5f };
+  static metal      reddish_metal { nm::float3 {0.8f, 0.6f, 0.2f },  0.0f };
+  static metal      gray_metal    { nm::float3 { 0.8f, 0.8f, 0.8f }, 0.3f };
+
+  static sphere_list scene {
+    sphere { nm::float3{ 0.0f,    0.0f, -1.0f }, 0.5f, &diffuse_blue},
+    sphere { nm::float3{ 0.0f, -100.5f, -1.0f }, 100.0f, &diffuse_yellow },
+    sphere { nm::float3{1.0f, 0.0f, -1.0f}, 0.5f, &reddish_metal },
+    sphere { nm::float3{-1.0f, 0.0f, -1.0f}, 0.5f, &dielectric_1 },
+    sphere { nm::float3{-1.0f, 0.0f, -1.0f},-0.45f, &dielectric_1 },
   };
   hit_record hit;
-  if (bounce < max_bounces && scene.hit_test(r, 0.0f, 1000.0f, hit)) {
+  if (bounce < max_bounces && scene.hit_test(r, 0.001f, 1000.0f, hit)) {
     const nm::float3 target = hit.p + hit.normal + random_in_unit_sphere();
-    return 0.5f * color(ray { hit.p, target - hit.p }, bounce + 1);
+    nm::float3 attn;
+    ray        scattered;
+    if (hit.mat->scatter(r, hit, attn, scattered)) {
+      return attn * color(scattered, bounce + 1);
+    }
   }
   const float t = 0.5f * (r.direction().y() + 1.0f);
   return (1.0f - t) * nm::float3 { 1.0f, 1.0f, 1.0f } +
@@ -273,7 +421,7 @@ nm::float3 color(const ray &r, int bounce) {
 int main(int argc, char *argv[]) {
   constexpr size_t kNumSamples = 100u;
 
-  framebuffer  fb { 200u, 100u };
+  framebuffer  fb { 400u, 200u };
   camera      cam { 4.0f, 2.0f };
 
   for (size_t r = 0u; r < fb.height(); r++) {
