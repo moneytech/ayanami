@@ -38,6 +38,18 @@ nm::float3 random_in_unit_sphere() {
 }
 
 /**
+ * Produces a random 3D point within a disk of radius 1.
+ */
+nm::float2 random_in_unit_disk() {
+  nm::float2 result;
+  do {
+    result = 2.0f * nm::float2 { randf(), randf() } -
+                    nm::float2 {    1.0f,    1.0f };
+  } while (nm::lengthsq(result) > 1.0f);
+  return result;
+}
+
+/**
  * A two-dimensional array of pixel colors.
  */
 class framebuffer {
@@ -141,28 +153,51 @@ private:
  * Produces primary rays.
  */
 class camera {
+  static constexpr float Pi = 3.1415926f;
 public:
   /**
    * Creates a camera with aspect_h / aspect_v aspect ratio.
    */
-  camera(float aspect_h, float aspect_v) :
-    aspect_h_ (aspect_h),
-    aspect_v_ (aspect_v),
-      origin_ { 0.0f, 0.0f, 0.0f } {}
+  camera(float fov_v,
+         float aspect,
+         const nm::float3 &look_from,
+         const nm::float3 &look_at,
+         const nm::float3 &upvector,
+         float             aperture) :
+      origin_      (look_from),
+      lens_radius_ (aperture / 2.0f),
+      camz_ { nm::normalize(look_from - look_at) },
+      camx_ { nm::normalize(nm::cross(upvector, camz_)) },
+      camy_ { nm::normalize(nm::cross(camz_, camx_)) } {
+    const float fov_v_rad   = fov_v * Pi / 180.0f;
+    const float half_height = tan(fov_v_rad / 2.0f);
+    const float half_width  = half_height * aspect;
+    const float focus_dist  = nm::length(look_from - look_at);
+    lower_left_ = origin_ - half_width * focus_dist * camx_ - half_height * focus_dist * camy_
+                  - focus_dist * camz_;
+    hvector_    =  camx_ * 2.0f * focus_dist * half_width;
+    vvector_    =  camy_ * 2.0f * focus_dist * half_height;
+  }
 
   /**
    * Calculate a ray for the given UV coordinate of the camera image.
    */
   ray get_ray(float u, float v) {
-    const nm::float3 lower_left { -aspect_h_ / 2.0f, -aspect_v_/2.0f, -1.0f };
-    return ray { origin_,
-                 lower_left + nm::float3 {u * aspect_h_, v * aspect_v_, 0.0f}};
+    const nm::float2 rd    = random_in_unit_disk() * lens_radius_;
+    const nm::float3 ray_o = origin_ + camx_ * rd.x() + camy_ * rd.y();
+    return ray { ray_o,
+                 lower_left_ + u * hvector_ + v * vvector_ - ray_o };
   }
 
 private:
-  float      aspect_h_;
-  float      aspect_v_;
-  nm::float3 origin_;
+  nm::float3 hvector_,
+             vvector_,
+             lower_left_,
+             origin_,
+             camz_,
+             camx_,
+             camy_;
+  float      lens_radius_;
 };
 
 class material;
@@ -398,6 +433,7 @@ nm::float3 color(const ray &r, int bounce) {
   static metal      reddish_metal  { nm::float3 { 0.8f, 0.6f, 0.2f }, 0.0f };
   static metal      gray_metal     { nm::float3 { 0.8f, 0.8f, 0.8f }, 0.3f };
 
+  float R = cos(3.1415926f / 4.0f);
   static sphere_list scene {
     sphere { nm::float3{ 0.0f,    0.0f, -1.0f }, 0.5f, &diffuse_blue},
     sphere { nm::float3{ 0.0f, -100.5f, -1.0f }, 100.0f, &diffuse_yellow },
@@ -424,7 +460,13 @@ int main(int argc, char *argv[]) {
   constexpr size_t kNumSamples = 100u;
 
   framebuffer  fb { 400u, 200u };
-  camera      cam { 4.0f, 2.0f };
+  camera      cam { 20.0f,
+                    2.0f,
+                    nm::float3 {  3.0f,  3.0f,  2.0f },
+                    nm::float3 {  0.0f,  0.0f, -1.0f },
+                    nm::float3 {  0.0f,  1.0f,  0.0 },
+                    2.0f
+                  };
 
   for (size_t r = 0u; r < fb.height(); r++) {
     for (size_t c = 0u; c < fb.width(); c++) {
