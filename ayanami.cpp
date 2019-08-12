@@ -83,7 +83,7 @@ public:
    * Saves the pixel data in uncompressed Targa format.
    */
   void save(const char* file_path) const {
-    FILE* fptr = fopen(file_path,"wb");
+    FILE* fptr = fopen(file_path, "wb");
     assert(fptr);
 
     // Write targa header, this portion taken from
@@ -155,26 +155,26 @@ private:
 class camera {
   static constexpr float Pi = 3.1415926f;
 public:
-  /**
-   * Creates a camera with aspect_h / aspect_v aspect ratio.
-   */
   camera(float fov_v,
-         float aspect,
+         float aspect,               
          const nm::float3 &look_from,
          const nm::float3 &look_at,
          const nm::float3 &upvector,
          float             aperture) :
-      origin_      (look_from),
+           origin_ (look_from),
       lens_radius_ (aperture / 2.0f),
-      camz_ { nm::normalize(look_from - look_at) },
-      camx_ { nm::normalize(nm::cross(upvector, camz_)) },
-      camy_ { nm::normalize(nm::cross(camz_, camx_)) } {
+             camz_ { nm::normalize(look_from - look_at) },
+             camx_ { nm::normalize(nm::cross(upvector, camz_)) },
+             camy_ { nm::normalize(nm::cross(camz_, camx_)) }
+  {
     const float fov_v_rad   = fov_v * Pi / 180.0f;
     const float half_height = tan(fov_v_rad / 2.0f);
     const float half_width  = half_height * aspect;
     const float focus_dist  = nm::length(look_from - look_at);
-    lower_left_ = origin_ - half_width * focus_dist * camx_ - half_height * focus_dist * camy_
-                  - focus_dist * camz_;
+
+    lower_left_ = origin_ - half_width  * focus_dist * camx_
+                          - half_height * focus_dist * camy_
+                          -               focus_dist * camz_;
     hvector_    =  camx_ * 2.0f * focus_dist * half_width;
     vvector_    =  camy_ * 2.0f * focus_dist * half_height;
   }
