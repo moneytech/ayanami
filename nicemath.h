@@ -247,6 +247,7 @@ inline constexpr auto cross(const vec<S, 3> &lhs, const vec<S, 3> &rhs) {
                    lhs.data[2] * rhs.data[0] - lhs.data[0] * rhs.data[2],
                    lhs.data[0] * rhs.data[1] - lhs.data[1] * rhs.data[0]);
 }
+
 /**
  * @return The dot product of two vectors.
  */
