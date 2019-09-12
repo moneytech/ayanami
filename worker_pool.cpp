@@ -50,6 +50,9 @@ void worker_pool::worker_main(const worker_config &cfg) {
           col = col + ctx_.scn.color(ctx_.scn.cam().get_ray(u, v), 0);
         }
         col /= (float)cfg.nsamples;
+        col[0] = col[0] > 1.0f ? 1.0f : col[0];
+        col[1] = col[1] > 1.0f ? 1.0f : col[1];
+        col[2] = col[2] > 1.0f ? 1.0f : col[2];
         ctx_.fb.set_pixel(r, c,
           255.99f * sqrt(col.x()),
           255.99f * sqrt(col.y()),

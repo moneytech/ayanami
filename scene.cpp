@@ -3,6 +3,7 @@
 #include "lambertian.h"
 #include "metal.h"
 #include "dielectric.h"
+#include "simple_light.h"
 #include <assert.h>
 #include <vector>
 #include <string>
@@ -95,6 +96,23 @@ static int aya_mat_lambert_LUA(lua_State *l) {
   return 1;
 }
 
+static int aya_mat_simple_light_LUA(lua_State *l) {
+  scene        *scn = nullptr;
+  float          ar,
+                 ag,
+                 ab;
+
+  LUA_CHECK_NUMARGS(4);
+  LUA_CHECKED_GET(1, scn, userdata);
+  LUA_CHECKED_GET(2,  ar, number);
+  LUA_CHECKED_GET(3,  ag, number);
+  LUA_CHECKED_GET(4,  ab, number);
+  auto mat = std::make_unique<simple_light>(nm::float3 { ar, ag, ab });
+  lua_pushlightuserdata(l, mat.get());
+  scn->add_material(std::move(mat));
+  return 1;
+}
+
 static int aya_mat_metal_LUA(lua_State *l) {
   scene        *scn = nullptr;
   float          ar,
@@ -181,6 +199,7 @@ scene::scene(lua_env    &lua,
       .register_func("mat_lambert", aya_mat_lambert_LUA)
       .register_func("mat_metal", aya_mat_metal_LUA)
       .register_func("mat_dielectric", aya_mat_dielectric_LUA)
+      .register_func("mat_simple_light", aya_mat_simple_light_LUA)
       .register_func("sphere", aya_sphere_LUA)
       .register_func("camera", aya_camera_LUA);
   }
@@ -230,16 +249,17 @@ void scene::add_hitable(std::unique_ptr<hitable> &&h) {
 }
 
 nm::float3 scene::color(const ray &r, int bounce) const {
-  static constexpr int kMaxBounces = 50;
+  static constexpr int kMaxBounces = 100;
   hit_record hit;
-  if (bounce < kMaxBounces && root_node_->hit_test(r, 0.001f, 1000.0f, hit)) {
+  if (root_node_->hit_test(r, 0.001f, 1000.0f, hit)) {
     nm::float3 attn;
     ray        scattered;
-    if (hit.mat->scatter(r, hit, attn, scattered)) {
-      return attn * color(scattered, bounce + 1);
+    nm::float3 emitted = hit.mat->emitted(hit.p);
+    if (bounce < kMaxBounces && hit.mat->scatter(r, hit, attn, scattered)) {
+      return emitted + attn * color(scattered, bounce + 1);
+    } else {
+      return emitted;
     }
   }
-  const float t = 0.5f * (r.direction().y() + 1.0f);
-  return (1.0f - t) * nm::float3 { 1.0f, 1.0f, 1.0f } +
-                 t  * nm::float3 { 0.5f, 0.7f, 1.0f };
+  return nm::float3 { 0.0f };
 }
