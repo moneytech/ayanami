@@ -4,6 +4,7 @@
 #include "metal.h"
 #include "dielectric.h"
 #include "simple_light.h"
+#include "aa_rect.h"
 #include <assert.h>
 #include <vector>
 #include <string>
@@ -24,6 +25,87 @@ static int aya_log_LUA(lua_State *l) {
   LUA_CHECK_NUMARGS(1);
   LUA_CHECKED_GET(1, msg, string);
   fprintf(stderr, "LUA: %s", msg);
+  return 0;
+}
+
+static int aya_xyrect_LUA(lua_State *l) {
+  scene          *scn = nullptr;
+  float           a00,
+                  a01,
+                  a10,
+                  a11,
+                  d;
+  bool            face;
+  const material *mat = nullptr;
+  LUA_CHECK_NUMARGS(8);
+  LUA_CHECKED_GET(1, scn, userdata);
+  LUA_CHECKED_GET(2, a00, number);
+  LUA_CHECKED_GET(3, a01, number);
+  LUA_CHECKED_GET(4, a10, number);
+  LUA_CHECKED_GET(5, a11, number);
+  LUA_CHECKED_GET(6, d,   number);
+  LUA_CHECKED_GET(7, face,boolean);
+  LUA_CHECKED_GET(8, mat, userdata);
+  scn->add_hitable(std::make_unique<aa_rect>(aa_rect::axes::xy,
+                                             nm::float2 { a00, a01 },
+                                             nm::float2 { a10, a11 },
+                                             d,
+                                            *mat,
+                                             face));
+  return 0;
+}
+
+static int aya_xzrect_LUA(lua_State *l) {
+  scene          *scn = nullptr;
+  float           a00,
+                  a01,
+                  a10,
+                  a11,
+                  d;
+  bool            face;
+  const material *mat = nullptr;
+  LUA_CHECK_NUMARGS(8);
+  LUA_CHECKED_GET(1, scn, userdata);
+  LUA_CHECKED_GET(2, a00, number);
+  LUA_CHECKED_GET(3, a01, number);
+  LUA_CHECKED_GET(4, a10, number);
+  LUA_CHECKED_GET(5, a11, number);
+  LUA_CHECKED_GET(6, d,   number);
+  LUA_CHECKED_GET(7, face,boolean);
+  LUA_CHECKED_GET(8, mat, userdata);
+  scn->add_hitable(std::make_unique<aa_rect>(aa_rect::axes::xz,
+                                             nm::float2 { a00, a01 },
+                                             nm::float2 { a10, a11 },
+                                             d,
+                                            *mat,
+                                             face));
+  return 0;
+}
+
+static int aya_yzrect_LUA(lua_State *l) {
+  scene          *scn = nullptr;
+  float           a00,
+                  a01,
+                  a10,
+                  a11,
+                  d;
+  bool            face;
+  const material *mat = nullptr;
+  LUA_CHECK_NUMARGS(8);
+  LUA_CHECKED_GET(1, scn, userdata);
+  LUA_CHECKED_GET(2, a00, number);
+  LUA_CHECKED_GET(3, a01, number);
+  LUA_CHECKED_GET(4, a10, number);
+  LUA_CHECKED_GET(5, a11, number);
+  LUA_CHECKED_GET(6, d,   number);
+  LUA_CHECKED_GET(7, face,boolean);
+  LUA_CHECKED_GET(8, mat, userdata);
+  scn->add_hitable(std::make_unique<aa_rect>(aa_rect::axes::yz,
+                                             nm::float2 { a00, a01 },
+                                             nm::float2 { a10, a11 },
+                                             d,
+                                            *mat,
+                                             face));
   return 0;
 }
 
@@ -143,6 +225,23 @@ static int aya_mat_dielectric_LUA(lua_State *l) {
   return 1;
 }
 
+static int aya_sky_gradient_LUA(lua_State *l) {
+  scene *scn = nullptr;
+  float  g0r, g0g, g0b,
+         g1r, g1g, g1b;
+  LUA_CHECK_NUMARGS(7);
+  LUA_CHECKED_GET(1, scn, userdata);
+  LUA_CHECKED_GET(2, g0r, number);
+  LUA_CHECKED_GET(3, g0g, number);
+  LUA_CHECKED_GET(4, g0b, number);
+  LUA_CHECKED_GET(5, g1r, number);
+  LUA_CHECKED_GET(6, g1g, number);
+  LUA_CHECKED_GET(7, g1b, number);
+  scn->set_sky_gradient(nm::float3 { g0r, g0g, g0b },
+                        nm::float3 { g1r, g1g, g1b });
+  return 0;
+}
+
 }
 
 class scene_module_builder {
@@ -191,7 +290,11 @@ scene::scene(lua_env    &lua,
                nm::float3 {  0.0f,  1.0f,  0.0 },
                kCamAperture
              },
-             aspect_(aspect) {
+             aspect_(aspect),
+             sky_gradient_ {
+               nm::float3 { 1.0f, 1.0f, 1.0f },
+               nm::float3 { 0.5f, 0.7f, 1.0f }
+             } {
   if (!lua.global_exists(kSceneFunctionsModuleName)) {
     // register native funcs
     scene_module_builder sm { lua };
@@ -201,7 +304,11 @@ scene::scene(lua_env    &lua,
       .register_func("mat_dielectric", aya_mat_dielectric_LUA)
       .register_func("mat_simple_light", aya_mat_simple_light_LUA)
       .register_func("sphere", aya_sphere_LUA)
-      .register_func("camera", aya_camera_LUA);
+      .register_func("camera", aya_camera_LUA)
+      .register_func("sky_gradient", aya_sky_gradient_LUA)
+      .register_func("xyrect", aya_xyrect_LUA)
+      .register_func("xzrect", aya_xzrect_LUA)
+      .register_func("yzrect", aya_yzrect_LUA);
   }
   lua.load_module(kSceneScriptModuleName, script, script_len);
   lua_pushlightuserdata(lua.raw(), (void*)this);
@@ -244,14 +351,13 @@ void scene::add_material(std::unique_ptr<material> &&mat) {
 }
 
 void scene::add_hitable(std::unique_ptr<hitable> &&h) {
-  //root_.append(std::move(h));
   hitables_.push_back(h.release());
 }
 
 nm::float3 scene::color(const ray &r, int bounce) const {
-  static constexpr int kMaxBounces = 100;
+  static constexpr int kMaxBounces = 50;
   hit_record hit;
-  if (root_node_->hit_test(r, 0.001f, 1000.0f, hit)) {
+  if (root_node_->hit_test(r, 0.001f, 10000.0f, hit)) {
     nm::float3 attn;
     ray        scattered;
     nm::float3 emitted = hit.mat->emitted(hit.p);
@@ -261,5 +367,6 @@ nm::float3 scene::color(const ray &r, int bounce) const {
       return emitted;
     }
   }
-  return nm::float3 { 0.0f };
+  const float t = 0.5f * (r.direction().y() + 1.0f);
+  return (1.0f - t) * sky_gradient_[0] + t * sky_gradient_[1];
 }

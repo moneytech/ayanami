@@ -53,8 +53,11 @@ set(AYANAMI_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/hitable_list.cpp
     ${CMAKE_CURRENT_LIST_DIR}/worker_pool.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ayanami.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/aa_rect.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bvh_node.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/simple_light.h
     ${CMAKE_CURRENT_LIST_DIR}/aabb.h
+    ${CMAKE_CURRENT_LIST_DIR}/aa_rect.h
     ${CMAKE_CURRENT_LIST_DIR}/bvh_node.h
     ${CMAKE_CURRENT_LIST_DIR}/ayanami.h
     ${CMAKE_CURRENT_LIST_DIR}/worker_pool.h

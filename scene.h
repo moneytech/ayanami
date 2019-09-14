@@ -38,6 +38,11 @@ public:
   void add_hitable(std::unique_ptr<hitable> &&h);
   stats get_stats() const { return stats_; }
   void rebuild_bvh(bvh_node::cons_strat);
+  void set_sky_gradient(const nm::float3 &btm,
+                        const nm::float3 &top) {
+    sky_gradient_[0] = btm;
+    sky_gradient_[1] = top;
+  }
 
 private:
   std::vector<hitable*>                  hitables_;
@@ -46,4 +51,5 @@ private:
   float                                  aspect_;
   std::vector<std::unique_ptr<material>> mats_;
   stats                                  stats_;
+  nm::float3                             sky_gradient_[2];
 };
