@@ -12,4 +12,5 @@ struct hit_record {
   float           t;      /* Parameter value at the intersection.*/
   nm::float3      p;      /* The intersection point itself. */
   const material *mat;    /* Material at the intersection point. */
+  nm::float2      uv;     /* Texture coordinates. */
 };

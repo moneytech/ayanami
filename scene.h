@@ -6,6 +6,7 @@
 #include "lua_env.h"
 #include "camera.h"
 #include "material.h"
+#include "texture.h"
 #include "hitable_list.h"
 #include "camera.h"
 #include "nicemath.h"
@@ -35,6 +36,7 @@ public:
                   const nm::float3 &upvector,
                   float             aperture);
   void add_material(std::unique_ptr<material> &&mat);
+  void add_texture(std::unique_ptr<texture> &&tex);
   void add_hitable(std::unique_ptr<hitable> &&h);
   stats get_stats() const { return stats_; }
   void rebuild_bvh(bvh_node::cons_strat);
@@ -50,6 +52,7 @@ private:
   camera                                 cam_;
   float                                  aspect_;
   std::vector<std::unique_ptr<material>> mats_;
+  std::vector<std::unique_ptr<texture>>  texs_;
   stats                                  stats_;
   nm::float3                             sky_gradient_[2];
 };

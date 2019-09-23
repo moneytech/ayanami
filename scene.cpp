@@ -5,6 +5,7 @@
 #include "dielectric.h"
 #include "simple_light.h"
 #include "aa_rect.h"
+#include "checker_texture.h"
 #include <assert.h>
 #include <vector>
 #include <string>
@@ -26,6 +27,32 @@ static int aya_log_LUA(lua_State *l) {
   LUA_CHECKED_GET(1, msg, string);
   fprintf(stderr, "LUA: %s", msg);
   return 0;
+}
+
+static int aya_tex_checker_LUA(lua_State *l) {
+  scene *scn = nullptr;
+  float  c0r,
+         c0g,
+         c0b,
+         c1r,
+         c1b,
+         c1g;
+  int    size;
+  LUA_CHECK_NUMARGS(8);
+  LUA_CHECKED_GET(1, scn, userdata);
+  LUA_CHECKED_GET(2, c0r, number);
+  LUA_CHECKED_GET(3, c0g, number);
+  LUA_CHECKED_GET(4, c0b, number);
+  LUA_CHECKED_GET(5, c1r, number);
+  LUA_CHECKED_GET(6, c1g, number);
+  LUA_CHECKED_GET(7, c1b, number);
+  LUA_CHECKED_GET(8, size, number);
+  auto tex = std::make_unique<checker_texture>(nm::float3 { c0r, c0g, c0b },
+                                               nm::float3 { c1r, c1g, c1b },
+                                               size);
+  lua_pushlightuserdata(l, tex.get());
+  scn->add_texture(std::move(tex));
+  return 1;
 }
 
 static int aya_xyrect_LUA(lua_State *l) {
@@ -178,6 +205,19 @@ static int aya_mat_lambert_LUA(lua_State *l) {
   return 1;
 }
 
+static int aya_mat_lambert_textured_LUA(lua_State *l) {
+  scene   *scn = nullptr;
+  texture *tex = nullptr;
+
+  LUA_CHECK_NUMARGS(2);
+  LUA_CHECKED_GET(1, scn, userdata);
+  LUA_CHECKED_GET(2, tex, userdata);
+  auto mat = std::make_unique<lambertian>(tex);
+  lua_pushlightuserdata(l, mat.get());
+  scn->add_material(std::move(mat));
+  return 1;
+}
+
 static int aya_mat_simple_light_LUA(lua_State *l) {
   scene        *scn = nullptr;
   float          ar,
@@ -272,7 +312,6 @@ function _scene_wrapper_factory(scene)
     return *this;
   }
 private:
-  
   lua_env                 &lua_;
   std::vector<std::string> func_names_;
   uint32_t                 buf_length_ = 0;
@@ -300,6 +339,7 @@ scene::scene(lua_env    &lua,
     scene_module_builder sm { lua };
     sm.register_func("log", aya_log_LUA)
       .register_func("mat_lambert", aya_mat_lambert_LUA)
+      .register_func("mat_lambert_textured", aya_mat_lambert_textured_LUA)
       .register_func("mat_metal", aya_mat_metal_LUA)
       .register_func("mat_dielectric", aya_mat_dielectric_LUA)
       .register_func("mat_simple_light", aya_mat_simple_light_LUA)
@@ -308,7 +348,8 @@ scene::scene(lua_env    &lua,
       .register_func("sky_gradient", aya_sky_gradient_LUA)
       .register_func("xyrect", aya_xyrect_LUA)
       .register_func("xzrect", aya_xzrect_LUA)
-      .register_func("yzrect", aya_yzrect_LUA);
+      .register_func("yzrect", aya_yzrect_LUA)
+      .register_func("tex_checker", aya_tex_checker_LUA);
   }
   lua.load_module(kSceneScriptModuleName, script, script_len);
   lua_pushlightuserdata(lua.raw(), (void*)this);
@@ -348,6 +389,10 @@ void scene::set_camera(float             fov_v,
 
 void scene::add_material(std::unique_ptr<material> &&mat) {
   mats_.emplace_back(std::move(mat));
+}
+
+void scene::add_texture(std::unique_ptr<texture> &&tex) {
+  texs_.emplace_back(std::move(tex));
 }
 
 void scene::add_hitable(std::unique_ptr<hitable> &&h) {

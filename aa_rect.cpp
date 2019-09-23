@@ -55,6 +55,10 @@ bool aa_rect::hit_test(const ray  &r,
   hit.p      = r.point_at(t);
   hit.normal = (face_ ? 1.0f : -1.0f) * n;
   hit.t      = t;
+  hit.uv     = nm::float2 {
+                 (a1 - bounds_[0][0]) / (bounds_[0][1] - bounds_[0][0]),
+                 (a2 - bounds_[1][0]) / (bounds_[1][1] - bounds_[1][0]),
+               };
   return true;
 } 
 

@@ -55,6 +55,10 @@ set(AYANAMI_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/ayanami.cpp
     ${CMAKE_CURRENT_LIST_DIR}/aa_rect.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bvh_node.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/checker_texture.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/checker_texture.h
+    ${CMAKE_CURRENT_LIST_DIR}/texture.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/texture.h
     ${CMAKE_CURRENT_LIST_DIR}/simple_light.h
     ${CMAKE_CURRENT_LIST_DIR}/aabb.h
     ${CMAKE_CURRENT_LIST_DIR}/aa_rect.h
