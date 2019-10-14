@@ -4,7 +4,7 @@
 
 class perlin_noise : public noise {
 public:
-  perlin_noise();
+  perlin_noise(float freq_factor = 1.0f, float amplitude_factor = 1.0f);
   float sample(const nm::float3 &point) const override;
 
 private:
@@ -13,4 +13,5 @@ private:
   static constexpr int kNumGradients = 256;
   nm::float3 gradients_[kNumGradients] = {};
   int perms_[3][kNumGradients];
+  const float freq_, amplitude_;
 };

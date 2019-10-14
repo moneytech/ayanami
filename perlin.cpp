@@ -11,7 +11,9 @@ float fade(float t) {
 
 }
 
-perlin_noise::perlin_noise() {
+perlin_noise::perlin_noise(float freq_factor, float amplitude_factor) : 
+    freq_(freq_factor), 
+    amplitude_(amplitude_factor) {
   for (int g = 0; g < kNumGradients; ++g) {
     gradients_[g] = nm::float3{ randf() * 2.0f - 1.0f,
                                 randf() * 2.0f - 1.0f,
@@ -36,7 +38,9 @@ const nm::float3 perlin_noise::grad(const nm::float3 &p) const {
   return gradients_[perms_[0][gx & 0xff] ^ perms_[1][gy & 0xff] ^ perms_[2][gz &0xff]];
 }
 
-float perlin_noise::sample(const nm::float3 &p) const {
+float perlin_noise::sample(const nm::float3 &in) const {
+  const nm::float3 p = freq_ * in;
+
   /* Calculate lattice points. */
   auto       p0 = nm::float3 { floor(p.x()), floor(p.y()), floor(p.z()) };
   nm::float3 p1 = p0 + nm::float3(1.0, 0.0, 0.0);
@@ -77,5 +81,5 @@ float perlin_noise::sample(const nm::float3 &p) const {
   float y2 = (1.0 - fade_t1) * p4p5 + fade_t1 * p6p7;
 
   /* Calculate final result */
-  return (1.0 - fade_t2) * y1 + fade_t2 * y2;
+  return amplitude_ * ((1.0 - fade_t2) * y1 + fade_t2 * y2);
 }
