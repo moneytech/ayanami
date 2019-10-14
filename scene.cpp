@@ -70,11 +70,13 @@ static int aya_tex_perlin_LUA(lua_State *l) {
 static int aya_mat_perlin_LUA(lua_State *l) {
   scene *scn = nullptr;
   material *src1 = nullptr, *src2 = nullptr;
-  LUA_CHECK_NUMARGS(3);
+  noise *n = nullptr;
+  LUA_CHECK_NUMARGS(4);
   LUA_CHECKED_GET(1, scn, userdata);
   LUA_CHECKED_GET(2, src1, userdata);
   LUA_CHECKED_GET(3, src2, userdata);
-  auto mat = std::make_unique<perlin_mat>(src1, src2);
+  LUA_CHECKED_GET(4, n, userdata);
+  auto mat = std::make_unique<perlin_mat>(src1, src2, n);
   lua_pushlightuserdata(l, mat.get());
   scn->add_material(std::move(mat));
   return 1;

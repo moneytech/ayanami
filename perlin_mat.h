@@ -5,7 +5,8 @@
 
 class perlin_mat : public material {
 public:
-  explicit perlin_mat(material *src1, material *src2) : src1_(src1), src2_(src2) {}
+  explicit perlin_mat(material *src1, material *src2, noise *n) :
+      src1_(src1), src2_(src2), noise_(n) {}
 
   bool scatter(const ray        &in,
                const hit_record &rec,
@@ -17,7 +18,7 @@ public:
                             src2_->scatter(in, rec, attns[1], outsc[1]) };
 
     if (result[0] || result[1]) {
-      const float noiseval = 0.5f * noise_.sample(rec.p * 0.25f) + 0.5f;
+      const float noiseval = 0.5f * noise_->sample(rec.p * 0.25f) + 0.5f;
       attn =  ((1.0f - noiseval) * attns[0] + (noiseval) * attns[1]);
       scattered = ray(rec.p,
                       noiseval * outsc[0].direction() + (1.0f - noiseval) * outsc[1].direction());
@@ -28,5 +29,5 @@ public:
 private:
   material *src1_;
   material *src2_;
-  perlin_noise noise_;
+  noise    *noise_;
 };
