@@ -58,6 +58,8 @@ set(AYANAMI_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/checker_texture.cpp
     ${CMAKE_CURRENT_LIST_DIR}/perlin.cpp
     ${CMAKE_CURRENT_LIST_DIR}/perlin.h
+    ${CMAKE_CURRENT_LIST_DIR}/noise.h
+    ${CMAKE_CURRENT_LIST_DIR}/perlin_mat.h
     ${CMAKE_CURRENT_LIST_DIR}/checker_texture.h
     ${CMAKE_CURRENT_LIST_DIR}/texture.cpp
     ${CMAKE_CURRENT_LIST_DIR}/texture.h

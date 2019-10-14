@@ -7,6 +7,7 @@
 #include "aa_rect.h"
 #include "checker_texture.h"
 #include "perlin_texture.h"
+#include "perlin_mat.h"
 #include <assert.h>
 #include <vector>
 #include <string>
@@ -65,7 +66,18 @@ static int aya_tex_perlin_LUA(lua_State *l) {
   scn->add_texture(std::move(tex));
   return 1;
 }
-
+static int aya_mat_perlin_LUA(lua_State *l) {
+  scene *scn = nullptr;
+  material *src1 = nullptr, *src2 = nullptr;
+  LUA_CHECK_NUMARGS(3);
+  LUA_CHECKED_GET(1, scn, userdata);
+  LUA_CHECKED_GET(2, src1, userdata);
+  LUA_CHECKED_GET(3, src2, userdata);
+  auto mat = std::make_unique<perlin_mat>(src1, src2);
+  lua_pushlightuserdata(l, mat.get());
+  scn->add_material(std::move(mat));
+  return 1;
+}
 
 static int aya_xyrect_LUA(lua_State *l) {
   scene          *scn = nullptr;
@@ -353,6 +365,7 @@ scene::scene(lua_env    &lua,
       .register_func("mat_lambert", aya_mat_lambert_LUA)
       .register_func("mat_lambert_textured", aya_mat_lambert_textured_LUA)
       .register_func("mat_metal", aya_mat_metal_LUA)
+      .register_func("mat_perlin", aya_mat_perlin_LUA)
       .register_func("mat_dielectric", aya_mat_dielectric_LUA)
       .register_func("mat_simple_light", aya_mat_simple_light_LUA)
       .register_func("sphere", aya_sphere_LUA)
