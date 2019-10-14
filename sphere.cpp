@@ -26,6 +26,12 @@ bool sphere::hit_test(const ray  &r,
     hit.p = r.point_at(hit.t);
     hit.normal = (hit.p - center_) / radius_;
     hit.mat = mat_;
+    /* compute UVs at hit point */
+    const nm::float3 local_hitpoint = nm::normalize(hit.p - center_);
+    const float phi = atan2(local_hitpoint.x(), local_hitpoint.z());
+    const float theta = acos(local_hitpoint.y());
+    hit.uv = nm::float2 { 1.0f - (phi + nm::PI) / (2.0f * nm::PI),
+                          (theta + nm::PI / 2.0f) / nm::PI };
   }
 
   return d > 0.0f;
