@@ -8,6 +8,7 @@
 #include "checker_texture.h"
 #include "perlin_texture.h"
 #include "perlin_mat.h"
+#include "fractal_noise.h"
 #include <assert.h>
 #include <vector>
 #include <string>
@@ -289,6 +290,33 @@ static int aya_mat_dielectric_LUA(lua_State *l) {
   return 1;
 }
 
+static int aya_perlin_noise_LUA(lua_State *l) {
+  scene *scn = nullptr;
+  float  freq, ampl;
+  LUA_CHECK_NUMARGS(3);
+  LUA_CHECKED_GET(1, scn, userdata)
+  LUA_CHECKED_GET(2, freq, number);
+  LUA_CHECKED_GET(3, ampl, number);
+  auto n = std::make_unique<perlin_noise>(freq, ampl);
+  lua_pushlightuserdata(l, n.get());
+  scn->add_noise(std::move(n));
+  return 1;
+}
+
+static int aya_fractal_noise_LUA(lua_State *l) {
+  scene *scn = nullptr;
+  perlin_noise *oc0, *oc1, *oc2;
+  LUA_CHECK_NUMARGS(4);
+  LUA_CHECKED_GET(1, scn, userdata)
+  LUA_CHECKED_GET(2, oc0, userdata);
+  LUA_CHECKED_GET(3, oc1, userdata);
+  LUA_CHECKED_GET(4, oc2, userdata);
+  auto n = std::make_unique<fractal_noise>(oc0, oc1, oc2);
+  lua_pushlightuserdata(l, n.get());
+  scn->add_noise(std::move(n));
+  return 1;
+}
+
 static int aya_sky_gradient_LUA(lua_State *l) {
   scene *scn = nullptr;
   float  g0r, g0g, g0b,
@@ -368,6 +396,8 @@ scene::scene(lua_env    &lua,
       .register_func("mat_perlin", aya_mat_perlin_LUA)
       .register_func("mat_dielectric", aya_mat_dielectric_LUA)
       .register_func("mat_simple_light", aya_mat_simple_light_LUA)
+      .register_func("perlin_noise", aya_perlin_noise_LUA)
+      .register_func("fractal_noise", aya_fractal_noise_LUA)
       .register_func("sphere", aya_sphere_LUA)
       .register_func("camera", aya_camera_LUA)
       .register_func("sky_gradient", aya_sky_gradient_LUA)
@@ -411,18 +441,6 @@ void scene::set_camera(float             fov_v,
                        const nm::float3 &upvector,
                        float             aperture) {
   cam_ = camera(fov_v, aspect_, look_from, look_at, upvector, aperture);
-}
-
-void scene::add_material(std::unique_ptr<material> &&mat) {
-  mats_.emplace_back(std::move(mat));
-}
-
-void scene::add_texture(std::unique_ptr<texture> &&tex) {
-  texs_.emplace_back(std::move(tex));
-}
-
-void scene::add_hitable(std::unique_ptr<hitable> &&h) {
-  hitables_.push_back(h.release());
 }
 
 nm::float3 scene::color(const ray &r, int bounce) const {
