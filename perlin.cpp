@@ -12,10 +12,10 @@ float fade(float t) {
 }
 
 perlin_noise::perlin_noise() {
-  for (nm::float3 &grad : gradients_) {
-    grad[0] = randf() * 2.0f - 1.0f;
-    grad[1] = randf() * 2.0f - 1.0f;
-    grad[2] = randf() * 2.0f - 1.0f;
+  for (int g = 0; g < kNumGradients; ++g) {
+    gradients_[g] = nm::float3{ randf() * 2.0f - 1.0f,
+                                randf() * 2.0f - 1.0f,
+                                randf() * 2.0f - 1.0f };
   }
   for (int p = 0; p < 3; ++p) {
     for (int i = 0; i < kNumGradients; ++i) {
