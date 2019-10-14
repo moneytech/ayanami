@@ -6,6 +6,7 @@
 #include "simple_light.h"
 #include "aa_rect.h"
 #include "checker_texture.h"
+#include "perlin_texture.h"
 #include <assert.h>
 #include <vector>
 #include <string>
@@ -54,6 +55,17 @@ static int aya_tex_checker_LUA(lua_State *l) {
   scn->add_texture(std::move(tex));
   return 1;
 }
+
+static int aya_tex_perlin_LUA(lua_State *l) {
+  scene *scn = nullptr;
+  LUA_CHECK_NUMARGS(1);
+  LUA_CHECKED_GET(1, scn, userdata);
+  auto tex = std::make_unique<perlin_texture>();
+  lua_pushlightuserdata(l, tex.get());
+  scn->add_texture(std::move(tex));
+  return 1;
+}
+
 
 static int aya_xyrect_LUA(lua_State *l) {
   scene          *scn = nullptr;
@@ -349,7 +361,8 @@ scene::scene(lua_env    &lua,
       .register_func("xyrect", aya_xyrect_LUA)
       .register_func("xzrect", aya_xzrect_LUA)
       .register_func("yzrect", aya_yzrect_LUA)
-      .register_func("tex_checker", aya_tex_checker_LUA);
+      .register_func("tex_checker", aya_tex_checker_LUA)
+      .register_func("tex_perlin", aya_tex_perlin_LUA);
   }
   lua.load_module(kSceneScriptModuleName, script, script_len);
   lua_pushlightuserdata(lua.raw(), (void*)this);
