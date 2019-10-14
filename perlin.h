@@ -1,11 +1,11 @@
 #pragma once
 
-#include "nicemath.h"
+#include "noise.h"
 
-class perlin_noise {
+class perlin_noise : public noise {
 public:
   perlin_noise();
-  float sample(const nm::float3 &point) const;
+  float sample(const nm::float3 &point) const override;
 
 private:
   const nm::float3 grad(const nm::float3 &p) const;
