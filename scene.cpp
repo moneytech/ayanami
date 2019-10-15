@@ -309,13 +309,11 @@ static int aya_perlin_noise_LUA(lua_State *l) {
 
 static int aya_fractal_noise_LUA(lua_State *l) {
   scene *scn = nullptr;
-  perlin_noise *oc0, *oc1, *oc2;
-  LUA_CHECK_NUMARGS(4);
+  int noctaves = 0;
+  LUA_CHECK_NUMARGS(2);
   LUA_CHECKED_GET(1, scn, userdata)
-  LUA_CHECKED_GET(2, oc0, userdata);
-  LUA_CHECKED_GET(3, oc1, userdata);
-  LUA_CHECKED_GET(4, oc2, userdata);
-  auto n = std::make_unique<fractal_noise>(oc0, oc1, oc2);
+  LUA_CHECKED_GET(2, noctaves, number);
+  auto n = std::make_unique<fractal_noise>(noctaves);
   lua_pushlightuserdata(l, n.get());
   scn->add_noise(std::move(n));
   return 1;

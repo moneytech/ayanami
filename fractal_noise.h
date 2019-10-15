@@ -4,16 +4,21 @@
 
 class fractal_noise : public noise {
 public:
-  fractal_noise(const perlin_noise *oc1,
-                const perlin_noise *oc2,
-                const perlin_noise *oc3) : octaves_ { oc1, oc2, oc3 } {}
+  fractal_noise(int noctaves) : noctaves_ { noctaves } {}
 
   float sample(const nm::float3 &p) const override {
-    return octaves_[0]->sample(p) +
-           octaves_[1]->sample(p) +
-           octaves_[2]->sample(p);
+    float freq_mult = 1.0f,
+          ampl_mult = 1.0f,
+          result    = 0.0f;
+    for (int o = 0; o < noctaves_; ++o) {
+      result += noise_.sample(p * freq_mult) * ampl_mult;
+      ampl_mult *= 0.5f;
+      freq_mult *= 2.0f;
+    }
+    return result;
   }
 
 private:
-  const perlin_noise *octaves_[3];
+  const perlin_noise noise_;
+  const int noctaves_;
 };
