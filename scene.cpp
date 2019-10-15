@@ -69,14 +69,26 @@ static int aya_tex_perlin_LUA(lua_State *l) {
 }
 static int aya_mat_perlin_LUA(lua_State *l) {
   scene *scn = nullptr;
-  material *src1 = nullptr, *src2 = nullptr;
+  float  c0r,
+         c0g,
+         c0b,
+         c1r,
+         c1b,
+         c1g;
   noise *n = nullptr;
-  LUA_CHECK_NUMARGS(4);
+  LUA_CHECK_NUMARGS(8);
   LUA_CHECKED_GET(1, scn, userdata);
-  LUA_CHECKED_GET(2, src1, userdata);
-  LUA_CHECKED_GET(3, src2, userdata);
-  LUA_CHECKED_GET(4, n, userdata);
-  auto mat = std::make_unique<perlin_mat>(src1, src2, n);
+  LUA_CHECKED_GET(2, c0r, number);
+  LUA_CHECKED_GET(3, c0g, number);
+  LUA_CHECKED_GET(4, c0b, number);
+  LUA_CHECKED_GET(5, c1r, number);
+  LUA_CHECKED_GET(6, c1g, number);
+  LUA_CHECKED_GET(7, c1b, number);
+  LUA_CHECKED_GET(8,   n, userdata);
+  auto mat = std::make_unique<perlin_mat>(
+    nm::float3 { c0r, c0g, c0b },
+    nm::float3 { c1r, c1g, c1b },
+    n);
   lua_pushlightuserdata(l, mat.get());
   scn->add_material(std::move(mat));
   return 1;
