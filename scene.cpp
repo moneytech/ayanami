@@ -8,6 +8,7 @@
 #include "checker_texture.h"
 #include "perlin_mat.h"
 #include "fractal_noise.h"
+#include "marble.h"
 #include <assert.h>
 #include <vector>
 #include <string>
@@ -78,6 +79,36 @@ static int aya_mat_perlin_LUA(lua_State *l) {
   auto mat = std::make_unique<perlin_mat>(
     nm::float3 { c0r, c0g, c0b },
     nm::float3 { c1r, c1g, c1b },
+    n);
+  lua_pushlightuserdata(l, mat.get());
+  scn->add_material(std::move(mat));
+  return 1;
+}
+
+static int aya_mat_marble_LUA(lua_State *l) {
+  scene *scn = nullptr;
+  float  c0r,
+         c0g,
+         c0b,
+         c1r,
+         c1b,
+         c1g,
+         scale;
+  noise *n = nullptr;
+  LUA_CHECK_NUMARGS(9);
+  LUA_CHECKED_GET(1, scn,   userdata);
+  LUA_CHECKED_GET(2, c0r,   number);
+  LUA_CHECKED_GET(3, c0g,   number);
+  LUA_CHECKED_GET(4, c0b,   number);
+  LUA_CHECKED_GET(5, c1r,   number);
+  LUA_CHECKED_GET(6, c1g,   number);
+  LUA_CHECKED_GET(7, c1b,   number);
+  LUA_CHECKED_GET(8, scale, number);
+  LUA_CHECKED_GET(9, n,     userdata);
+  auto mat = std::make_unique<marble>(
+    nm::float3 { c0r, c0g, c0b },
+    nm::float3 { c1r, c1g, c1b },
+    scale,
     n);
   lua_pushlightuserdata(l, mat.get());
   scn->add_material(std::move(mat));
@@ -396,6 +427,7 @@ scene::scene(lua_env    &lua,
       .register_func("mat_lambert_textured", aya_mat_lambert_textured_LUA)
       .register_func("mat_metal", aya_mat_metal_LUA)
       .register_func("mat_perlin", aya_mat_perlin_LUA)
+      .register_func("mat_marble", aya_mat_marble_LUA)
       .register_func("mat_dielectric", aya_mat_dielectric_LUA)
       .register_func("mat_simple_light", aya_mat_simple_light_LUA)
       .register_func("perlin_noise", aya_perlin_noise_LUA)

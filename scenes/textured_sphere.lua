@@ -1,10 +1,8 @@
 module.main = function(scn)
-	local checker_tex = scn.tex_checker(1.0, 0.5, 0.6,
-	                             	     0.6, 0.5, 1.0,
-	                                	  50)
-	local checker_mat = scn.mat_lambert_textured(checker_tex)
 	local fnoise = scn.fractal_noise(7)
-	local pm = scn.mat_perlin(1.0, 1.0, 1.0, 0.0, 0.0, 0.0, fnoise)
-	scn.sphere(0, 0, -20, 5, checker_mat)
-	scn.sphere(0,-500, -20, 495, pm)
+	local frac_mat = scn.mat_perlin(0.0, 0.0, 0.0, 1.0, 1.0, 1.0, fnoise)
+	local marb_mat = scn.mat_marble(0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 3.0, fnoise)
+	scn.sphere(0, 0, -20, 5, marb_mat)
+	scn.sphere(0,-500, -20, 494.5, frac_mat)
+	scn.sphere(0, 0, -20, 5.5, scn.mat_dielectric(1.5))
 end
