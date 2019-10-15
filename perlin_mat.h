@@ -14,7 +14,7 @@ public:
                const hit_record &rec,
                nm::float3       &attn,
                ray              &scattered) const override {
-    const float noiseval = 0.5f * noise_->sample(rec.p * 0.25f) + 0.5f;
+    const float noiseval = fabs(noise_->sample(rec.p));
     attn =  ((1.0f - noiseval) * colors_[0] + (noiseval) * colors_[1]);
     scattered = ray{ rec.p, rec.normal + random_unit_vector() };
     return true;
