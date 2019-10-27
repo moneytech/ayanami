@@ -64,6 +64,8 @@ set(AYANAMI_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/marble.h
     ${CMAKE_CURRENT_LIST_DIR}/checker_texture.h
     ${CMAKE_CURRENT_LIST_DIR}/texture.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/volume.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/volume.h
     ${CMAKE_CURRENT_LIST_DIR}/texture.h
     ${CMAKE_CURRENT_LIST_DIR}/simple_light.h
     ${CMAKE_CURRENT_LIST_DIR}/aabb.h

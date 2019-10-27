@@ -9,6 +9,7 @@
 #include "perlin_mat.h"
 #include "fractal_noise.h"
 #include "marble.h"
+#include "volume.h"
 #include <assert.h>
 #include <vector>
 #include <string>
@@ -211,6 +212,33 @@ static int aya_sphere_LUA(lua_State *l) {
   LUA_CHECKED_GET(5,   r, number);
   LUA_CHECKED_GET(6, mat, userdata);
   scn->add_hitable(std::make_unique<sphere>(nm::float3 {cx, cy, cz}, r, mat));
+  return 0;
+}
+
+static int aya_sphere_volume_LUA(lua_State *l) {
+  scene        *scn = nullptr;
+  float          cx,
+                 cy,
+                 cz,
+                  r,
+                 ef,
+                 ar,
+                 ag,
+                 ab;
+  LUA_CHECK_NUMARGS(9);
+  LUA_CHECKED_GET(1, scn, userdata);
+  LUA_CHECKED_GET(2,  cx, number);
+  LUA_CHECKED_GET(3,  cy, number);
+  LUA_CHECKED_GET(4,  cz, number);
+  LUA_CHECKED_GET(5,   r, number);
+  LUA_CHECKED_GET(6,  ef, number);
+  LUA_CHECKED_GET(7,  ar, number);
+  LUA_CHECKED_GET(8,  ag, number);
+  LUA_CHECKED_GET(9,  ab, number);
+  scn->add_hitable(std::make_unique<volume>(
+    std::make_unique<sphere>(nm::float3 {cx, cy, cz}, r, nullptr),
+                             ef,
+                             nm::float3{ ar, ag, ab } ));
   return 0;
 }
 
@@ -433,6 +461,7 @@ scene::scene(lua_env    &lua,
       .register_func("perlin_noise", aya_perlin_noise_LUA)
       .register_func("fractal_noise", aya_fractal_noise_LUA)
       .register_func("sphere", aya_sphere_LUA)
+      .register_func("sphere_volume", aya_sphere_volume_LUA)
       .register_func("camera", aya_camera_LUA)
       .register_func("sky_gradient", aya_sky_gradient_LUA)
       .register_func("xyrect", aya_xyrect_LUA)
